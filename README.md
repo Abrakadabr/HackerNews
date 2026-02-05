@@ -10,7 +10,7 @@ This API provides an endpoint to fetch the top N "best stories" from Hacker News
 
 - **RESTful API**: Clean endpoint design following REST principles
 - **Caching**: In-memory caching to minimize API calls to Hacker News
-- **Circuit Breaker**: Polly-based circuit breaker pattern for resilience
+- **Circuit Breaker**: Circuit breaker behavior as part of the resilience pipeline (Polly is included as a dependency)
 - **Rate Limiting**: Configurable rate limiting to protect the API
 - **Parallel Processing**: Efficient concurrent fetching of story details
 - **Swagger/OpenAPI**: Interactive API documentation
@@ -51,12 +51,14 @@ The API will start at:
 
 ### 4. Access Swagger UI
 
-Open your browser and navigate to:
+Swagger UI is enabled when the application runs in the Development environment. If running locally with the default `Development` profile, open your browser and navigate to:
+
 ```
 http://localhost:5079
 ```
 
-Or for HTTPS:
+Or for HTTPS (if using the `https` launch profile):
+
 ```
 https://localhost:7026
 ```
@@ -123,7 +125,7 @@ All configuration settings are in `appsettings.json`:
 ```json
 {
   "HackerNewsApi": {
-    "BaseUrl": "https://hacker-news.firebaseio.com/v0/",
+    "BaseUrl": "https://hacker-news.firebaseio.com/v0",
     "MaxConcurrentRequests": 10,
     "RequestTimeoutSeconds": 30
   }
@@ -212,16 +214,10 @@ dotnet test /p:CollectCoverage=true
 ```
 
 The test suite includes:
-- **Unit Tests** (11 total):
-  - **Service Tests**: 4 tests covering HackerNewsService functionality
-  - **Controller Tests**: 7 tests covering StoriesController behavior (using Theory for boundary tests)
-- **Integration Tests** (6 tests): Full end-to-end API testing with real HTTP calls
-
-**Recent Improvements:**
-- Eliminated ~140 lines of duplicate test code
-- Converted repetitive tests to xUnit Theory patterns
-- Added helper methods for cleaner, more maintainable tests
-- All 17 tests passing with improved readability
+- **Unit Tests**:
+  - **Service Tests**: tests covering HackerNewsService functionality
+  - **Controller Tests**: tests covering StoriesController behavior
+- **Integration Tests**: Full end-to-end API testing with real HTTP calls
 
 ## Project Structure
 
@@ -288,7 +284,7 @@ Request Flow:
 
 ### Resilience Pipeline
 
-The resilience pipeline is implemented using **Polly v8** with the following order:
+The resilience pipeline is constructed via the resilience pipeline APIs in `ResiliencePipelineFactory`:
 
 ```
 Timeout (outer) → Retry → Circuit Breaker (inner)
@@ -300,7 +296,7 @@ This order ensures:
 3. **Circuit Breaker**: Persistent failures trigger the circuit breaker to protect the system
 
 #### Retry Policy
-- **Max Attempts**: 2 retries (3 total attempts)
+- **RetryMaxAttempts**: `2` (this value represents the number of retry attempts; the total attempts will be initial try + retries)
 - **Backoff**: Exponential (500ms, 1000ms)
 - **Handles**: `HttpRequestException`, `TimeoutRejectedException`
 - **Benefit**: Recovers from transient network issues without burdening the circuit breaker
